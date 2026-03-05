@@ -1,410 +1,398 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Earthquake Power Monitor</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body>
-    <div id="root"></div>
+import React, { useState, useEffect } from ‘react’;
+import { Activity, Zap, MapPin, AlertTriangle, Calendar, TrendingUp } from ‘lucide-react’;
+
+const EarthquakePowerApp = () => {
+const [earthquakes, setEarthquakes] = useState([]);
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState(null);
+const [filter, setFilter] = useState(‘all’);
+const [timeRange, setTimeRange] = useState(‘day’);
+
+useEffect(() => {
+fetchEarthquakes();
+}, [timeRange]);
+
+const fetchEarthquakes = async () => {
+try {
+setLoading(true);
+let baseUrl = ‘’;
+
+```
+  switch(timeRange) {
+    case 'hour':
+      baseUrl = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson';
+      break;
+    case 'day':
+      baseUrl = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson';
+      break;
+    case 'week':
+      baseUrl = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson';
+      break;
+    case 'month':
+      baseUrl = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson';
+      break;
+    default:
+      baseUrl = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson';
+  }
+  
+  // Try direct fetch first
+  let response;
+  let data;
+  
+  try {
+    response = await fetch(baseUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
     
-    <script type="text/babel">
-        const { useState, useEffect } = React;
-        const Activity = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></svg>;
-        const Zap = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>;
-        const MapPin = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>;
-        const AlertTriangle = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>;
-        const Calendar = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>;
-        const TrendingUp = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>;
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    data = await response.json();
+  } catch (directError) {
+    // If direct fetch fails, try with CORS proxy
+    console.log('Direct fetch failed, trying CORS proxy...');
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(baseUrl)}`;
+    response = await fetch(proxyUrl);
+    
+    if (!response.ok) {
+      throw new Error(`Proxy fetch failed with status: ${response.status}`);
+    }
+    
+    data = await response.json();
+  }
+  
+  const processedQuakes = data.features
+    .filter(quake => quake.properties.mag !== null && quake.properties.mag !== undefined)
+    .map(quake => {
+      const magnitude = quake.properties.mag;
+      const energy = calculateEnergy(magnitude);
+      const power = calculatePower(energy, 60);
+      
+      return {
+        id: quake.id,
+        place: quake.properties.place || 'Unknown location',
+        magnitude: magnitude,
+        time: new Date(quake.properties.time),
+        coords: quake.geometry.coordinates,
+        energy: energy,
+        power: power,
+        depth: quake.geometry.coordinates[2] || 0
+      };
+    });
+  
+  setEarthquakes(processedQuakes.sort((a, b) => b.time - a.time));
+  setError(null);
+} catch (err) {
+  console.error('Fetch error:', err);
+  setError(`Failed to fetch earthquake data: ${err.message}. This may be due to network restrictions or CORS policies.`);
+} finally {
+  setLoading(false);
+}
+```
 
-        const EarthquakePowerApp = () => {
-          const [earthquakes, setEarthquakes] = useState([]);
-          const [loading, setLoading] = useState(true);
-          const [error, setError] = useState(null);
-          const [filter, setFilter] = useState('all');
-          const [timeRange, setTimeRange] = useState('day');
+};
 
-          useEffect(() => {
-            fetchEarthquakes();
-          }, [timeRange]);
+const calculateEnergy = (magnitude) => {
+if (!magnitude || magnitude < 0) return 0;
+return Math.pow(10, 4.8 + 1.5 * magnitude);
+};
 
-          const fetchEarthquakes = async () => {
-            try {
-              setLoading(true);
-              let baseUrl = '';
-              
-              switch(timeRange) {
-                case 'hour':
-                  baseUrl = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson';
-                  break;
-                case 'day':
-                  baseUrl = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson';
-                  break;
-                case 'week':
-                  baseUrl = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson';
-                  break;
-                case 'month':
-                  baseUrl = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson';
-                  break;
-                default:
-                  baseUrl = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson';
-              }
-              
-              let response;
-              let data;
-              
-              try {
-                response = await fetch(baseUrl, {
-                  method: 'GET',
-                  headers: {
-                    'Accept': 'application/json',
-                  },
-                });
-                
-                if (!response.ok) {
-                  throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                data = await response.json();
-              } catch (directError) {
-                console.log('Direct fetch failed, trying CORS proxy...');
-                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(baseUrl)}`;
-                response = await fetch(proxyUrl);
-                
-                if (!response.ok) {
-                  throw new Error(`Proxy fetch failed with status: ${response.status}`);
-                }
-                
-                data = await response.json();
-              }
-              
-              const processedQuakes = data.features.map(quake => {
-                const magnitude = quake.properties.mag;
-                const energy = calculateEnergy(magnitude);
-                const power = calculatePower(energy, 60);
-                
-                return {
-                  id: quake.id,
-                  place: quake.properties.place,
-                  magnitude: magnitude,
-                  time: new Date(quake.properties.time),
-                  coords: quake.geometry.coordinates,
-                  energy: energy,
-                  power: power,
-                  depth: quake.geometry.coordinates[2]
-                };
-              });
-              
-              setEarthquakes(processedQuakes.sort((a, b) => b.time - a.time));
-              setError(null);
-            } catch (err) {
-              console.error('Fetch error:', err);
-              setError(`Failed to fetch earthquake data: ${err.message}. This may be due to network restrictions or CORS policies.`);
-            } finally {
-              setLoading(false);
-            }
-          };
+const calculatePower = (energy, durationSeconds) => {
+return energy / durationSeconds;
+};
 
-          const calculateEnergy = (magnitude) => {
-            if (!magnitude || magnitude < 0) return 0;
-            return Math.pow(10, 4.8 + 1.5 * magnitude);
-          };
+const formatPower = (watts) => {
+if (watts >= 1e15) return `${(watts / 1e15).toFixed(2)} PW`;
+if (watts >= 1e12) return `${(watts / 1e12).toFixed(2)} TW`;
+if (watts >= 1e9) return `${(watts / 1e9).toFixed(2)} GW`;
+if (watts >= 1e6) return `${(watts / 1e6).toFixed(2)} MW`;
+if (watts >= 1e3) return `${(watts / 1e3).toFixed(2)} kW`;
+return `${watts.toFixed(2)} W`;
+};
 
-          const calculatePower = (energy, durationSeconds) => {
-            return energy / durationSeconds;
-          };
+const formatEnergy = (joules) => {
+if (joules >= 1e15) return `${(joules / 1e15).toFixed(2)} PJ`;
+if (joules >= 1e12) return `${(joules / 1e12).toFixed(2)} TJ`;
+if (joules >= 1e9) return `${(joules / 1e9).toFixed(2)} GJ`;
+if (joules >= 1e6) return `${(joules / 1e6).toFixed(2)} MJ`;
+return `${(joules / 1e3).toFixed(2)} kJ`;
+};
 
-          const formatPower = (watts) => {
-            if (watts >= 1e15) return `${(watts / 1e15).toFixed(2)} PW`;
-            if (watts >= 1e12) return `${(watts / 1e12).toFixed(2)} TW`;
-            if (watts >= 1e9) return `${(watts / 1e9).toFixed(2)} GW`;
-            if (watts >= 1e6) return `${(watts / 1e6).toFixed(2)} MW`;
-            if (watts >= 1e3) return `${(watts / 1e3).toFixed(2)} kW`;
-            return `${watts.toFixed(2)} W`;
-          };
+const getMagnitudeColor = (mag) => {
+if (mag >= 7) return ‘bg-red-500’;
+if (mag >= 6) return ‘bg-orange-500’;
+if (mag >= 5) return ‘bg-yellow-500’;
+if (mag >= 4) return ‘bg-blue-500’;
+return ‘bg-gray-500’;
+};
 
-          const formatEnergy = (joules) => {
-            if (joules >= 1e15) return `${(joules / 1e15).toFixed(2)} PJ`;
-            if (joules >= 1e12) return `${(joules / 1e12).toFixed(2)} TJ`;
-            if (joules >= 1e9) return `${(joules / 1e9).toFixed(2)} GJ`;
-            if (joules >= 1e6) return `${(joules / 1e6).toFixed(2)} MJ`;
-            return `${(joules / 1e3).toFixed(2)} kJ`;
-          };
+const filteredQuakes = earthquakes.filter(q => {
+if (filter === ‘major’) return q.magnitude >= 5;
+if (filter === ‘moderate’) return q.magnitude >= 4 && q.magnitude < 5;
+if (filter === ‘minor’) return q.magnitude < 4;
+return true;
+});
 
-          const getMagnitudeColor = (mag) => {
-            if (mag >= 7) return 'bg-red-500';
-            if (mag >= 6) return 'bg-orange-500';
-            if (mag >= 5) return 'bg-yellow-500';
-            if (mag >= 4) return 'bg-blue-500';
-            return 'bg-gray-500';
-          };
+const totalEnergy = filteredQuakes.reduce((sum, q) => sum + q.energy, 0);
+const totalPower = filteredQuakes.reduce((sum, q) => sum + q.power, 0);
+const averageMagnitude = filteredQuakes.length > 0
+? filteredQuakes.reduce((sum, q) => sum + q.magnitude, 0) / filteredQuakes.length
+: 0;
 
-          const filteredQuakes = earthquakes.filter(q => {
-            if (filter === 'major') return q.magnitude >= 5;
-            if (filter === 'moderate') return q.magnitude >= 4 && q.magnitude < 5;
-            if (filter === 'minor') return q.magnitude < 4;
-            return true;
-          });
+// Calculate power comparisons
+const householdPower = 1200; // Average household uses ~1.2kW
+const householdsEquivalent = Math.floor(totalPower / householdPower);
 
-          const totalEnergy = filteredQuakes.reduce((sum, q) => sum + q.energy, 0);
-          const totalPower = filteredQuakes.reduce((sum, q) => sum + q.power, 0);
-          const averageMagnitude = filteredQuakes.length > 0 
-            ? filteredQuakes.reduce((sum, q) => sum + q.magnitude, 0) / filteredQuakes.length 
-            : 0;
+const cityPower = 500e6; // Small city ~500MW
+const citiesEquivalent = (totalPower / cityPower).toFixed(2);
 
-          const householdPower = 1200;
-          const householdsEquivalent = Math.floor(totalPower / householdPower);
-          
-          const cityPower = 500e6;
-          const citiesEquivalent = (totalPower / cityPower).toFixed(2);
+const formatTimeAgo = (date) => {
+const seconds = Math.floor((new Date() - date) / 1000);
+if (seconds < 60) return `${seconds}s ago`;
+const minutes = Math.floor(seconds / 60);
+if (minutes < 60) return `${minutes}m ago`;
+const hours = Math.floor(minutes / 60);
+if (hours < 24) return `${hours}h ago`;
+const days = Math.floor(hours / 24);
+return `${days}d ago`;
+};
 
-          const formatTimeAgo = (date) => {
-            const seconds = Math.floor((new Date() - date) / 1000);
-            if (seconds < 60) return `${seconds}s ago`;
-            const minutes = Math.floor(seconds / 60);
-            if (minutes < 60) return `${minutes}m ago`;
-            const hours = Math.floor(minutes / 60);
-            if (hours < 24) return `${hours}h ago`;
-            const days = Math.floor(hours / 24);
-            return `${days}d ago`;
-          };
+if (loading && earthquakes.length === 0) {
+return (
+<div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white p-8 flex items-center justify-center">
+<div className="text-center">
+<Activity className="w-16 h-16 animate-pulse mx-auto mb-4" />
+<p className="text-xl">Loading earthquake data…</p>
+</div>
+</div>
+);
+}
 
-          if (loading && earthquakes.length === 0) {
-            return (
-              <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white p-8 flex items-center justify-center">
-                <div className="text-center">
-                  <Activity className="w-16 h-16 animate-pulse mx-auto mb-4" />
-                  <p className="text-xl">Loading earthquake data...</p>
-                </div>
-              </div>
-            );
-          }
+return (
+<div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white p-4 md:p-8">
+<div className="max-w-7xl mx-auto">
+<div className="mb-8">
+<div className="flex items-center gap-3 mb-2">
+<Activity className="w-10 h-10 text-blue-400" />
+<h1 className="text-4xl font-bold">Global Earthquake Energy Monitor</h1>
+</div>
+<p className="text-slate-300">Historical seismic activity with potential energy conversion analysis</p>
+</div>
 
-          return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white p-4 md:p-8">
-              <div className="max-w-7xl mx-auto">
-                <div className="mb-8">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Activity className="w-10 h-10 text-blue-400" />
-                    <h1 className="text-4xl font-bold">Global Earthquake Energy Monitor</h1>
+```
+    {error && (
+      <div className="bg-red-500/20 border border-red-500 rounded-lg p-4 mb-6 flex items-center gap-2">
+        <AlertTriangle className="w-5 h-5" />
+        <span>{error}</span>
+      </div>
+    )}
+
+    <div className="mb-6 flex gap-2 flex-wrap">
+      <div className="flex gap-2">
+        <button 
+          onClick={() => setTimeRange('hour')}
+          className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${timeRange === 'hour' ? 'bg-blue-600' : 'bg-slate-700 hover:bg-slate-600'}`}
+        >
+          <Calendar className="w-4 h-4" />
+          Past Hour
+        </button>
+        <button 
+          onClick={() => setTimeRange('day')}
+          className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${timeRange === 'day' ? 'bg-blue-600' : 'bg-slate-700 hover:bg-slate-600'}`}
+        >
+          <Calendar className="w-4 h-4" />
+          Past Day
+        </button>
+        <button 
+          onClick={() => setTimeRange('week')}
+          className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${timeRange === 'week' ? 'bg-blue-600' : 'bg-slate-700 hover:bg-slate-600'}`}
+        >
+          <Calendar className="w-4 h-4" />
+          Past Week
+        </button>
+        <button 
+          onClick={() => setTimeRange('month')}
+          className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${timeRange === 'month' ? 'bg-blue-600' : 'bg-slate-700 hover:bg-slate-600'}`}
+        >
+          <Calendar className="w-4 h-4" />
+          Past Month
+        </button>
+      </div>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700">
+        <div className="flex items-center gap-2 mb-2">
+          <Activity className="w-5 h-5 text-blue-400" />
+          <span className="text-slate-400">Total Events</span>
+        </div>
+        <p className="text-3xl font-bold">{filteredQuakes.length}</p>
+        <p className="text-xs text-slate-500 mt-1">in selected period</p>
+      </div>
+      
+      <div className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700">
+        <div className="flex items-center gap-2 mb-2">
+          <Zap className="w-5 h-5 text-yellow-400" />
+          <span className="text-slate-400">Total Energy</span>
+        </div>
+        <p className="text-3xl font-bold">{formatEnergy(totalEnergy)}</p>
+        <p className="text-xs text-slate-500 mt-1">cumulative release</p>
+      </div>
+
+      <div className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700">
+        <div className="flex items-center gap-2 mb-2">
+          <TrendingUp className="w-5 h-5 text-green-400" />
+          <span className="text-slate-400">Avg Magnitude</span>
+        </div>
+        <p className="text-3xl font-bold">{averageMagnitude.toFixed(2)}</p>
+        <p className="text-xs text-slate-500 mt-1">mean severity</p>
+      </div>
+
+      <div className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700">
+        <div className="flex items-center gap-2 mb-2">
+          <AlertTriangle className="w-5 h-5 text-orange-400" />
+          <span className="text-slate-400">Strongest</span>
+        </div>
+        <p className="text-3xl font-bold">
+          {filteredQuakes.length > 0 ? filteredQuakes.reduce((max, q) => q.magnitude > max ? q.magnitude : max, 0).toFixed(1) : '-'}
+        </p>
+        <p className="text-xs text-slate-500 mt-1">peak magnitude</p>
+      </div>
+    </div>
+
+    <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 backdrop-blur rounded-xl p-6 border border-purple-700/50 mb-8">
+      <h3 className="font-semibold mb-4 flex items-center gap-2 text-lg">
+        <Zap className="w-6 h-6 text-yellow-400" />
+        Potential Energy Conversion Analysis
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div>
+          <p className="text-slate-400 text-sm mb-1">Equivalent Power Output</p>
+          <p className="text-2xl font-bold text-yellow-400">{formatPower(totalPower)}</p>
+          <p className="text-xs text-slate-500 mt-1">if captured over 60 seconds</p>
+        </div>
+        <div>
+          <p className="text-slate-400 text-sm mb-1">Household Equivalent</p>
+          <p className="text-2xl font-bold text-green-400">{householdsEquivalent.toLocaleString()}</p>
+          <p className="text-xs text-slate-500 mt-1">homes @ 1.2kW each</p>
+        </div>
+        <div>
+          <p className="text-slate-400 text-sm mb-1">City Equivalent</p>
+          <p className="text-2xl font-bold text-blue-400">{citiesEquivalent}</p>
+          <p className="text-xs text-slate-500 mt-1">cities @ 500MW each</p>
+        </div>
+      </div>
+      <div className="mt-4 pt-4 border-t border-slate-700">
+        <p className="text-xs text-slate-400">
+          💡 If we could capture and convert 100% of seismic energy to electricity, the earthquakes in this period would have powered {householdsEquivalent.toLocaleString()} households for one hour.
+        </p>
+      </div>
+    </div>
+
+    <div className="mb-6 flex gap-2">
+      <button 
+        onClick={() => setFilter('all')}
+        className={`px-4 py-2 rounded-lg transition-colors ${filter === 'all' ? 'bg-blue-600' : 'bg-slate-700 hover:bg-slate-600'}`}
+      >
+        All Magnitudes
+      </button>
+      <button 
+        onClick={() => setFilter('major')}
+        className={`px-4 py-2 rounded-lg transition-colors ${filter === 'major' ? 'bg-blue-600' : 'bg-slate-700 hover:bg-slate-600'}`}
+      >
+        Major (5+)
+      </button>
+      <button 
+        onClick={() => setFilter('moderate')}
+        className={`px-4 py-2 rounded-lg transition-colors ${filter === 'moderate' ? 'bg-blue-600' : 'bg-slate-700 hover:bg-slate-600'}`}
+      >
+        Moderate (4-5)
+      </button>
+      <button 
+        onClick={() => setFilter('minor')}
+        className={`px-4 py-2 rounded-lg transition-colors ${filter === 'minor' ? 'bg-blue-600' : 'bg-slate-700 hover:bg-slate-600'}`}
+      >
+        Minor (&lt;4)
+      </button>
+    </div>
+
+    <div className="bg-slate-800/50 backdrop-blur rounded-xl border border-slate-700 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-slate-900/50">
+            <tr>
+              <th className="px-6 py-4 text-left text-sm font-semibold">Location</th>
+              <th className="px-6 py-4 text-left text-sm font-semibold">Magnitude</th>
+              <th className="px-6 py-4 text-left text-sm font-semibold">Energy Released</th>
+              <th className="px-6 py-4 text-left text-sm font-semibold">Potential Power</th>
+              <th className="px-6 py-4 text-left text-sm font-semibold">Time</th>
+              <th className="px-6 py-4 text-left text-sm font-semibold">Depth</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-700">
+            {filteredQuakes.map((quake) => (
+              <tr key={quake.id} className="hover:bg-slate-700/30 transition-colors">
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                    <span className="text-sm">{quake.place}</span>
                   </div>
-                  <p className="text-slate-300">Historical seismic activity with potential energy conversion analysis</p>
-                </div>
-
-                {error && (
-                  <div className="bg-red-500/20 border border-red-500 rounded-lg p-4 mb-6 flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5" />
-                    <span>{error}</span>
+                </td>
+                <td className="px-6 py-4">
+                  <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${getMagnitudeColor(quake.magnitude)} font-bold`}>
+                    {quake.magnitude.toFixed(1)}
+                  </span>
+                </td>
+                <td className="px-6 py-4 font-mono text-sm">{formatEnergy(quake.energy)}</td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-yellow-400" />
+                    <span className="font-mono text-sm">{formatPower(quake.power)}</span>
                   </div>
-                )}
+                </td>
+                <td className="px-6 py-4 text-sm">
+                  <div className="text-slate-300">{quake.time.toLocaleString()}</div>
+                  <div className="text-xs text-slate-500">{formatTimeAgo(quake.time)}</div>
+                </td>
+                <td className="px-6 py-4 text-sm text-slate-300">
+                  {quake.depth.toFixed(1)} km
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
 
-                <div className="mb-6 flex gap-2 flex-wrap">
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => setTimeRange('hour')}
-                      className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${timeRange === 'hour' ? 'bg-blue-600' : 'bg-slate-700 hover:bg-slate-600'}`}
-                    >
-                      <Calendar className="w-4 h-4" />
-                      Past Hour
-                    </button>
-                    <button 
-                      onClick={() => setTimeRange('day')}
-                      className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${timeRange === 'day' ? 'bg-blue-600' : 'bg-slate-700 hover:bg-slate-600'}`}
-                    >
-                      <Calendar className="w-4 h-4" />
-                      Past Day
-                    </button>
-                    <button 
-                      onClick={() => setTimeRange('week')}
-                      className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${timeRange === 'week' ? 'bg-blue-600' : 'bg-slate-700 hover:bg-slate-600'}`}
-                    >
-                      <Calendar className="w-4 h-4" />
-                      Past Week
-                    </button>
-                    <button 
-                      onClick={() => setTimeRange('month')}
-                      className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${timeRange === 'month' ? 'bg-blue-600' : 'bg-slate-700 hover:bg-slate-600'}`}
-                    >
-                      <Calendar className="w-4 h-4" />
-                      Past Month
-                    </button>
-                  </div>
-                </div>
+    <div className="mt-6 bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700">
+      <h3 className="font-semibold mb-3 flex items-center gap-2">
+        <Zap className="w-5 h-5 text-yellow-400" />
+        Understanding Energy Conversion Potential
+      </h3>
+      <div className="space-y-2 text-sm text-slate-300">
+        <p>
+          <strong>Energy Calculation:</strong> Using the Richter scale formula E = 10^(4.8 + 1.5M) joules, where M is magnitude.
+        </p>
+        <p>
+          <strong>Power Estimation:</strong> Potential power output is calculated by dividing total energy by an assumed 60-second release duration (Power = Energy / Time).
+        </p>
+        <p>
+          <strong>Real-World Context:</strong> A magnitude 6.0 earthquake releases approximately 63 PJ (petajoules) of energy - equivalent to about 15 megatons of TNT or the energy consumption of a small city for several months.
+        </p>
+        <p className="text-yellow-400">
+          ⚠️ <strong>Important Note:</strong> These calculations show theoretical energy equivalents. Current technology cannot capture seismic energy for electrical generation. Earthquakes release energy as seismic waves through the Earth, making direct conversion impossible with existing methods.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+```
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                  <div className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Activity className="w-5 h-5 text-blue-400" />
-                      <span className="text-slate-400">Total Events</span>
-                    </div>
-                    <p className="text-3xl font-bold">{filteredQuakes.length}</p>
-                    <p className="text-xs text-slate-500 mt-1">in selected period</p>
-                  </div>
-                  
-                  <div className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Zap className="w-5 h-5 text-yellow-400" />
-                      <span className="text-slate-400">Total Energy</span>
-                    </div>
-                    <p className="text-3xl font-bold">{formatEnergy(totalEnergy)}</p>
-                    <p className="text-xs text-slate-500 mt-1">cumulative release</p>
-                  </div>
+);
+};
 
-                  <div className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700">
-                    <div className="flex items-center gap-2 mb-2">
-                      <TrendingUp className="w-5 h-5 text-green-400" />
-                      <span className="text-slate-400">Avg Magnitude</span>
-                    </div>
-                    <p className="text-3xl font-bold">{averageMagnitude.toFixed(2)}</p>
-                    <p className="text-xs text-slate-500 mt-1">mean severity</p>
-                  </div>
-
-                  <div className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700">
-                    <div className="flex items-center gap-2 mb-2">
-                      <AlertTriangle className="w-5 h-5 text-orange-400" />
-                      <span className="text-slate-400">Strongest</span>
-                    </div>
-                    <p className="text-3xl font-bold">
-                      {filteredQuakes.length > 0 ? filteredQuakes.reduce((max, q) => q.magnitude > max ? q.magnitude : max, 0).toFixed(1) : '-'}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">peak magnitude</p>
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 backdrop-blur rounded-xl p-6 border border-purple-700/50 mb-8">
-                  <h3 className="font-semibold mb-4 flex items-center gap-2 text-lg">
-                    <Zap className="w-6 h-6 text-yellow-400" />
-                    Potential Energy Conversion Analysis
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                      <p className="text-slate-400 text-sm mb-1">Equivalent Power Output</p>
-                      <p className="text-2xl font-bold text-yellow-400">{formatPower(totalPower)}</p>
-                      <p className="text-xs text-slate-500 mt-1">if captured over 60 seconds</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-400 text-sm mb-1">Household Equivalent</p>
-                      <p className="text-2xl font-bold text-green-400">{householdsEquivalent.toLocaleString()}</p>
-                      <p className="text-xs text-slate-500 mt-1">homes @ 1.2kW each</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-400 text-sm mb-1">City Equivalent</p>
-                      <p className="text-2xl font-bold text-blue-400">{citiesEquivalent}</p>
-                      <p className="text-xs text-slate-500 mt-1">cities @ 500MW each</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-slate-700">
-                    <p className="text-xs text-slate-400">
-                      💡 If we could capture and convert 100% of seismic energy to electricity, the earthquakes in this period would have powered {householdsEquivalent.toLocaleString()} households for one hour.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mb-6 flex gap-2">
-                  <button 
-                    onClick={() => setFilter('all')}
-                    className={`px-4 py-2 rounded-lg transition-colors ${filter === 'all' ? 'bg-blue-600' : 'bg-slate-700 hover:bg-slate-600'}`}
-                  >
-                    All Magnitudes
-                  </button>
-                  <button 
-                    onClick={() => setFilter('major')}
-                    className={`px-4 py-2 rounded-lg transition-colors ${filter === 'major' ? 'bg-blue-600' : 'bg-slate-700 hover:bg-slate-600'}`}
-                  >
-                    Major (5+)
-                  </button>
-                  <button 
-                    onClick={() => setFilter('moderate')}
-                    className={`px-4 py-2 rounded-lg transition-colors ${filter === 'moderate' ? 'bg-blue-600' : 'bg-slate-700 hover:bg-slate-600'}`}
-                  >
-                    Moderate (4-5)
-                  </button>
-                  <button 
-                    onClick={() => setFilter('minor')}
-                    className={`px-4 py-2 rounded-lg transition-colors ${filter === 'minor' ? 'bg-blue-600' : 'bg-slate-700 hover:bg-slate-600'}`}
-                  >
-                    Minor (&lt;4)
-                  </button>
-                </div>
-
-                <div className="bg-slate-800/50 backdrop-blur rounded-xl border border-slate-700 overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-slate-900/50">
-                        <tr>
-                          <th className="px-6 py-4 text-left text-sm font-semibold">Location</th>
-                          <th className="px-6 py-4 text-left text-sm font-semibold">Magnitude</th>
-                          <th className="px-6 py-4 text-left text-sm font-semibold">Energy Released</th>
-                          <th className="px-6 py-4 text-left text-sm font-semibold">Potential Power</th>
-                          <th className="px-6 py-4 text-left text-sm font-semibold">Time</th>
-                          <th className="px-6 py-4 text-left text-sm font-semibold">Depth</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-700">
-                        {filteredQuakes.map((quake) => (
-                          <tr key={quake.id} className="hover:bg-slate-700/30 transition-colors">
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-2">
-                                <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                                <span className="text-sm">{quake.place}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${getMagnitudeColor(quake.magnitude)} font-bold`}>
-                                {quake.magnitude.toFixed(1)}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 font-mono text-sm">{formatEnergy(quake.energy)}</td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-2">
-                                <Zap className="w-4 h-4 text-yellow-400" />
-                                <span className="font-mono text-sm">{formatPower(quake.power)}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-sm">
-                              <div className="text-slate-300">{quake.time.toLocaleString()}</div>
-                              <div className="text-xs text-slate-500">{formatTimeAgo(quake.time)}</div>
-                            </td>
-                            <td className="px-6 py-4 text-sm text-slate-300">
-                              {quake.depth.toFixed(1)} km
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div className="mt-6 bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700">
-                  <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-yellow-400" />
-                    Understanding Energy Conversion Potential
-                  </h3>
-                  <div className="space-y-2 text-sm text-slate-300">
-                    <p>
-                      <strong>Energy Calculation:</strong> Using the Richter scale formula E = 10^(4.8 + 1.5M) joules, where M is magnitude.
-                    </p>
-                    <p>
-                      <strong>Power Estimation:</strong> Potential power output is calculated by dividing total energy by an assumed 60-second release duration (Power = Energy / Time).
-                    </p>
-                    <p>
-                      <strong>Real-World Context:</strong> A magnitude 6.0 earthquake releases approximately 63 PJ (petajoules) of energy - equivalent to about 15 megatons of TNT or the energy consumption of a small city for several months.
-                    </p>
-                    <p className="text-yellow-400">
-                      ⚠️ <strong>Important Note:</strong> These calculations show theoretical energy equivalents. Current technology cannot capture seismic energy for electrical generation. Earthquakes release energy as seismic waves through the Earth, making direct conversion impossible with existing methods.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        };
-
-        ReactDOM.render(<EarthquakePowerApp />, document.getElementById('root'));
-    </script>
-</body>
-</html>
+export default EarthquakePowerApp;
