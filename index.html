@@ -152,6 +152,8 @@
           const totalPower = filtered.reduce((s, q) => s + q.power, 0);
           const avgMag = filtered.length > 0 ? filtered.reduce((s, q) => s + q.magnitude, 0) / filtered.length : 0;
           const households = Math.floor(totalPower / 1200);
+          const cityPower = 500e6; // 500 MW per small city
+          const citiesEquivalent = (totalPower / cityPower).toFixed(2);
 
           const timeAgo = (date) => {
             const sec = Math.floor((new Date() - date) / 1000);
@@ -255,11 +257,9 @@
                       <p className="text-xs text-slate-500 mt-1">homes @ 1.2kW each for 1 hour</p>
                     </div>
                     <div>
-                      <p className="text-slate-400 text-sm mb-1">Daily Energy Conversion</p>
-                      <p className="text-2xl font-bold text-blue-400">
-                        {formatEnergy(totalEnergy * (timeRange === 'hour' ? 24 : timeRange === 'day' ? 1 : timeRange === 'week' ? 1/7 : 1/30))}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">estimated daily average</p>
+                      <p className="text-slate-400 text-sm mb-1">City Power Equivalent</p>
+                      <p className="text-2xl font-bold text-blue-400">{citiesEquivalent}</p>
+                      <p className="text-xs text-slate-500 mt-1">cities @ 500MW each</p>
                     </div>
                   </div>
                 </div>
